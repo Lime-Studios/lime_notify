@@ -9,25 +9,14 @@ local function resolveType(t)
     if t == 'inform' then return 'info' end
     return t or 'info'
 end
-
--- Override lib.notify once the resource is ready
--- lib global is created by @ox_lib/init.lua — we override after it loads
-CreateThread(function()
-    -- Small wait to ensure ox_lib has initialised lib global if present
-    Wait(0)
-
-    if not lib then
-        -- ox_lib not loaded in this resource; nothing to hook
-        return
-    end
-
-    lib.notify = function(data)
-        if GetResourceState("lime_notify") ~= "started" then return end
-        exports['lime_notify']:Notify(
-            data.title       or 'Notification',
-            data.description or '',
-            resolveType(data.type),
-            data.duration    or 5000
-        )
-    end
+ 
+-- Catches: TriggerClientEvent('ox_lib:notify', source, data) from server-side scripts
+RegisterNetEvent('ox_lib:notify', function(data)
+    if GetResourceState("lime_notify") ~= "started" then return end
+    exports['lime_notify']:Notify(
+        data.title       or 'Notification',
+        data.description or '',
+        resolveType(data.type),
+        data.duration    or 5000
+    )
 end)
