@@ -6,6 +6,9 @@
     is to declare those same exports here, making lime_notify respond to them.
 
     Each section covers one popular notify script.
+    
+    NOTE: Uses exports['lime_notify']:Notify() rather than the local Notify()
+    function, since that local is not accessible across files.
 ]]
 
 local function resolveType(t)
@@ -16,8 +19,7 @@ local function resolveType(t)
 end
 
 local function notify(title, message, notifyType, duration)
-    -- calls the main Notify function already defined in client.lua
-    Notify(title, message, resolveType(notifyType), duration or 5000)
+    exports['lime_notify']:Notify(title or 'Notification', message or '', resolveType(notifyType), duration or 5000)
 end
 
 -- ================================================
@@ -78,9 +80,7 @@ RegisterNetEvent('mythic_notify:client:SendAlert', function(data)
 end)
 
 -- ================================================
--- ox_lib
--- lib.notify() on client sends NUI directly to ox_lib's page — unhookable.
--- Server-side lib.notify() fires this net event which we CAN catch:
+-- ox_lib (server-side only — client lib.notify() must be edited in ox_lib itself)
 -- TriggerClientEvent('ox_lib:notify', src, { title, description, type, duration })
 -- ================================================
 RegisterNetEvent('ox_lib:notify', function(data)
@@ -101,17 +101,14 @@ AddEventHandler('pNotify:SendNotification', function(data)
 end)
 
 -- ================================================
--- ESX notifications
--- ESX.ShowNotification and ESX.ShowAdvancedNotification are globals
--- set inside es_extended — we patch them here if ESX is available.
--- Also catches the raw events fired by some ESX internals.
+-- ESX
+-- ESX.ShowNotification and ESX.ShowAdvancedNotification patched at runtime
 -- ================================================
 CreateThread(function()
-    Wait(100) -- let ESX initialise first
+    Wait(100)
 
     if ESX then
         if ESX.ShowNotification then
-            local _orig = ESX.ShowNotification
             ESX.ShowNotification = function(message, notifyType, duration)
                 notify('Notification', message, notifyType, duration)
             end
@@ -134,12 +131,11 @@ AddEventHandler('esx:showAdvancedNotification', function(sender, subject, msg)
 end)
 
 -- ================================================
--- QBCore notifications
--- QBCore.Functions.Notify is a global — we patch it if QBCore is available.
--- Also catches the raw QBCore:Notify event.
+-- QBCore
+-- QBCore.Functions.Notify patched at runtime
 -- ================================================
 CreateThread(function()
-    Wait(100) -- let QBCore initialise first
+    Wait(100)
 
     if QBCore and QBCore.Functions and QBCore.Functions.Notify then
         QBCore.Functions.Notify = function(message, notifyType, duration)

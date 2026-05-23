@@ -4,7 +4,7 @@ lua54 'yes'
 
 author 'lime Scripts'
 description 'lime Notify - Modern Notification System with Sound Support'
-version '1.0.1'
+version '1.0.2'
 
 shared_scripts {
     'config.lua'
