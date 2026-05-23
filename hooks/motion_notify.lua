@@ -1,32 +1,15 @@
 --[[
-    motion_notify → lime_notify compatibility hook
-    -----------------------------------------------
-    Intercepts calls that target motion_notify and forwards
-    them to lime_notify.
+    HOOK: motion_notify → lime_notify
+    Catches exports['motion_notify']:Notify(...) and the net event
 ]]
- 
--- ================================
--- Net event hook
--- ================================
+
+local function forward(title, message, notifyType, duration)
+    if GetResourceState("lime_notify") ~= "started" then return end
+    exports['lime_notify']:Notify(title or 'Notification', message or '', notifyType or 'info', duration or 5000)
+end
+
+exports('Notify', forward)
+
 RegisterNetEvent('motion_notify:Notify', function(title, message, notifyType, duration)
-    TriggerEvent('lime_notify:Notify', title, message, notifyType, duration)
+    forward(title, message, notifyType, duration)
 end)
- 
--- ================================
--- Export hook
--- ================================
--- Catches: exports['motion_notify']:Notify(...)
-exports('Notify', function(title, message, notifyType, duration)
-    if GetResourceState("lime_notify") ~= "started" then
-        print("[hooks/motion_notify] WARNING: lime_notify is not started, skipping notify.")
-        return
-    end
- 
-    exports['lime_notify']:Notify(
-        title       or 'Notification',
-        message     or '',
-        notifyType  or 'info',
-        duration    or 5000
-    )
-end)
- 
