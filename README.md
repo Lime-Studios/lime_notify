@@ -7,9 +7,8 @@ https://discord.gg/fqUsy3FuYn
 
 1. Download and extract to your FiveM resources folder
 2. Rename the folder to `lime_notify`
-3. Add your `alert.ogg` sound file to the `html/` folder (or use the default one)
-4. Add `ensure lime_notify` to your `server.cfg`
-5. Restart your server
+3. Add `ensure lime_notify` to your `server.cfg`
+4. Restart your server
 
 ## Usage
 
@@ -21,6 +20,7 @@ exports['lime_notify']:Notify('Success', 'Action completed!', 'success')
 
 -- With duration
 exports['lime_notify']:Notify('Warning', 'Be careful!', 'warning', 7000)
+```
 
 ### Server Side
 
@@ -34,26 +34,28 @@ for _, playerId in ipairs(GetPlayers()) do
 end
 ```
 
-## Framework Integration
-If any of the integrations do not work, please open a ticket in our discord or submit a pull request 
-https://discord.gg/fqUsy3FuYn
+## ox_lib Integration
 
-We recommend to integrate with ox_lib:
+1. Open `ox_lib/resource/interface/client` and find the `lib.notify` function
+2. Replace it with the following code
+3. Restart your server
 
-### ox_lib
-1. Replace `lib.notify` function with code from `integrations/ox_lib/notify.lua`
+```lua
+function lib.notify(data)
+    if GetResourceState("lime_notify") ~= "started" then
+        return
+    end
+    local notifyType = data.type or 'info'
+    if notifyType == 'inform' then notifyType = 'info' end
 
-### QBCore
-1. Copy `integrations/qbcore/lime_notify.lua` to `qb-core/lime_notify.lua`
-2. Add `client_script 'lime_notify.lua'` to `qb-core/fxmanifest.lua`
-
-### QBox
-1. Replace Notify function in `qbx_core/client/functions.lua` with code from `integrations/qbox/client.lua`
-2. Replace Notify function in `qbx_core/server/functions.lua` with code from `integrations/qbox/server.lua`
-
-### ESX
-1. Copy `integrations/esx/lime_notify.lua` to `es_extended/lime_notify.lua`
-2. Add `client_script 'lime_notify.lua'` to `es_extended/fxmanifest.lua`
+    exports['lime_notify']:Notify(
+        data.title or 'Notification',
+        data.description or '',
+        notifyType,
+        data.duration or 5000
+    )
+end
+```
 
 ## Exports List
 
@@ -65,27 +67,24 @@ We recommend to integrate with ox_lib:
 
 ### Parameters
 
-**title** (string): Notification title
-**message** (string): Notification message
-**type** (string): 'success', 'error', 'warning', 'info'
-**duration** (number): Duration in milliseconds
-
-## Notification Types
-
-- `success` - Green
-- `error` - Red
-- `warning` - Orange
-- `info` - Blue
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| title | string | Notification title |
+| message | string | Notification message |
+| type | string | `success` `error` `warning` `info` `claimed` |
+| duration | number | Duration in milliseconds (default: 5000) |
 
 ## Commands
 
-`/editnotify` - Change default notification position and sound
-`/resetnotify` - Reset the to the default notification position and sound
-`/testnotify` - To test the default notifications
+| Command | Description |
+|---------|-------------|
+| `/editnotify` | Open the position, style and sound editor |
+| `/resetnotify` | Reset all settings to server defaults |
+| `/testnotify` | Show a test notification for each type |
+
 ## Support
 
-For issues or questions, please open an issue on GitHub or open a ticket in our discord: https://discord.gg/fqUsy3FuYn
+For issues or questions, open a ticket in our Discord: https://discord.gg/fqUsy3FuYn
 
 ## License
 GNU GPL v3
-

@@ -19,11 +19,13 @@ server_scripts {
     '_versioncheck.lua'
 }
 
-ui_page 'web/index.html'
+ui_page 'web/dist/index.html'
 
 files {
-    'web/index.html',
-    'web/alert.ogg',
+    'web/dist/index.html',
+    'web/dist/assets/index.js',
+    'web/dist/assets/index.css',
+    'web/dist/alert.ogg',
 }
 
 exports {
