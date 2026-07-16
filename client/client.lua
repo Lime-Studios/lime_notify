@@ -5,6 +5,7 @@ local soundVolume      = 50
 local notifSize        = 100
 local notifStyle       = 'default'
 local nuiLoaded        = false
+local idCounter        = 0
 
 local POSITION_MAP = {
     ['top-left']      = { x = 5,  y = 5  },
@@ -23,21 +24,38 @@ local VALID_STYLES = {
     ['toast']   = true, ['bold']    = true, ['retro'] = true,
 }
 
+-- Any unregistered notification type falls back to 'info'
+local TYPE_MAP = {
+    success = 'success', positive = 'success', ok = 'success',
+    error   = 'error',   failure  = 'error',   fail = 'error', negative = 'error',
+    warning = 'warning', warn     = 'warning', alert = 'warning', caution = 'warning',
+    info    = 'info',    inform   = 'info',    primary = 'info',
+    neutral = 'info',    message  = 'info',    police  = 'info',
+    phone   = 'info',    phonemessage = 'info',
+    claimed = 'claimed',
+}
+
+local function resolveType(t)
+    if not t then return 'info' end
+    return TYPE_MAP[tostring(t):lower()] or 'info'
+end
+
 local STYLE_TO_INT = {
     ['default'] = 1, ['minimal'] = 2, ['glass'] = 3,
     ['toast']   = 4, ['bold']    = 5, ['retro'] = 6,
 }
-local INT_TO_STYLE = {}
-for k, v in pairs(STYLE_TO_INT) do INT_TO_STYLE[v] = k end
+local INT_TO_STYLE = { 'default', 'minimal', 'glass', 'toast', 'bold', 'retro' }
 
-local function styleToInt(style) return STYLE_TO_INT[style] or 1 end
+local function nextId()
+    idCounter = idCounter + 1
+    return ('ln_%d_%d'):format(GetGameTimer(), idCounter)
+end
 
 RegisterNUICallback('nuiReady', function(_, cb)
     nuiLoaded = true
     cb('ok')
 end)
 
--- One-shot: fires once then the thread is gone
 SetTimeout(500, function()
     if not nuiLoaded then
         SendNUIMessage({ action = 'ping' })
@@ -79,8 +97,6 @@ local function getMenuPosition()
     local y = GetResourceKvpInt('lime_notify_menu_y')
     if x <= 0 then x = 20 end
     if y <= 0 then y = 20 end
-    SetResourceKvpInt('lime_notify_menu_x', x)
-    SetResourceKvpInt('lime_notify_menu_y', y)
     menuPosition = { x = x, y = y }
     return menuPosition
 end
@@ -108,12 +124,12 @@ local function getStyle()
         return notifStyle
     end
     local stored = GetResourceKvpInt('lime_notify_style')
-    if stored and stored >= 1 and INT_TO_STYLE[stored] then
+    if stored >= 1 and INT_TO_STYLE[stored] then
         notifStyle = INT_TO_STYLE[stored]
     else
         local cfgStyle = Config and Config.Style
         notifStyle = (cfgStyle and VALID_STYLES[cfgStyle]) and cfgStyle or 'default'
-        SetResourceKvpInt('lime_notify_style', styleToInt(notifStyle))
+        SetResourceKvpInt('lime_notify_style', STYLE_TO_INT[notifStyle])
     end
     return notifStyle
 end
@@ -141,7 +157,7 @@ RegisterNUICallback('saveSettings', function(data, cb)
     SetResourceKvpInt('lime_notify_sound',  soundEnabled and 1 or 2)
     SetResourceKvpInt('lime_notify_volume', volume)
     SetResourceKvpInt('lime_notify_size',   size)
-    SetResourceKvpInt('lime_notify_style',  styleToInt(style))
+    SetResourceKvpInt('lime_notify_style',  STYLE_TO_INT[style] or 1)
 
     SendNUIMessage({
         action = 'updateSettings',
@@ -160,10 +176,22 @@ RegisterNUICallback('closeEditor', function(_, cb)
     cb('ok')
 end)
 
+-- Click callbacks: any script can listen for
+--   AddEventHandler('lime_notify:clicked', function(id) ... end)
+RegisterNUICallback('notifyClicked', function(data, cb)
+    if data and data.id then
+        TriggerEvent('lime_notify:clicked', data.id)
+    end
+    cb('ok')
+end)
+
+-- ── Exports ──────────────────────────────────────────────────────────────────
+
+-- Returns the notification id. duration = 0 → sticky until Dismiss(id).
 local function Notify(title, message, notifyType, duration, style)
     if not waitForNui() then
         print('[lime_notify] Skipping notify - NUI not ready. Title: ' .. tostring(title))
-        return
+        return nil
     end
 
     local pos      = getPosition()
@@ -171,10 +199,12 @@ local function Notify(title, message, notifyType, duration, style)
     local sz       = getSize()
     local st       = style or getStyle()
     if not VALID_STYLES[st] then st = getStyle() end
+    local id       = nextId()
 
     SendNUIMessage({
         action   = 'notify',
-        type     = notifyType or 'info',
+        id       = id,
+        type     = resolveType(notifyType),
         title    = title      or 'Notification',
         message  = message    or '',
         duration = duration   or 5000,
@@ -184,19 +214,59 @@ local function Notify(title, message, notifyType, duration, style)
         size     = sz,
         style    = st,
     })
+
+    return id
 end
 
-exports('Notify', Notify)
+-- Progress notification: fill bar over duration, auto-dismisses. Returns id.
+local function Progress(title, message, duration, notifyType, style)
+    if not waitForNui() then return nil end
+
+    local pos      = getPosition()
+    local sz       = getSize()
+    local st       = style or getStyle()
+    if not VALID_STYLES[st] then st = getStyle() end
+    local id       = nextId()
+
+    SendNUIMessage({
+        action   = 'progress',
+        id       = id,
+        type     = resolveType(notifyType),
+        title    = title      or 'Working…',
+        message  = message    or '',
+        duration = duration   or 5000,
+        position = { x = pos.x, y = pos.y },
+        size     = sz,
+        style    = st,
+    })
+
+    return id
+end
+
+local function Dismiss(id)
+    if not id then return end
+    SendNUIMessage({ action = 'dismiss', id = id })
+end
+
+exports('Notify',   Notify)
+exports('Progress', Progress)
+exports('Dismiss',  Dismiss)
 
 RegisterNetEvent('lime_notify:Notify', function(title, message, notifyType, duration, style)
     Notify(title, message, notifyType, duration, style)
 end)
 
+RegisterNetEvent('lime_notify:Progress', function(title, message, duration, notifyType, style)
+    Progress(title, message, duration, notifyType, style)
+end)
+
+-- ── Commands ─────────────────────────────────────────────────────────────────
+
 RegisterCommand('testnotify', function()
-    Notify('Success!',    'This is a success message', 'success', 5000)
-    Notify('Information', 'This is an info message',   'info',    5000)
-    Notify('Warning',     'This is a warning message', 'warning', 5000)
-    Notify('Error :(',    'This is an error message',  'error',   5000)
+    Notify('Success!',    'This is a **success** message', 'success', 5000)
+    Notify('Information', 'This is an ~b~info~s~ message', 'info',    5000)
+    Notify('Warning',     'This is a warning message',     'warning', 5000)
+    Notify('Error :(',    'This is an error message',      'error',   5000)
 end)
 
 RegisterCommand('editnotify', function()
@@ -233,7 +303,7 @@ RegisterCommand('resetnotify', function()
     SetResourceKvpInt('lime_notify_sound',  1)
     SetResourceKvpInt('lime_notify_volume', 50)
     SetResourceKvpInt('lime_notify_size',   100)
-    SetResourceKvpInt('lime_notify_style',  styleToInt(defStyle))
+    SetResourceKvpInt('lime_notify_style',  STYLE_TO_INT[defStyle] or 1)
 
     currentPosition = nil
     menuPosition    = nil

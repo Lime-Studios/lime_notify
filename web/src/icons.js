@@ -1,5 +1,3 @@
-// icons.js — SVG path data for notification icons
-
 export const ICON_PATHS = {
   success: '<path d="M20 6 9 17l-5-5"/>',
   error:   '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',

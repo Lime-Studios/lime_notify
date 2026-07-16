@@ -3,9 +3,9 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   plugins: [svelte()],
-  base: './',                  // relative paths in built HTML (required for FiveM NUI)
+  base: './',
   build: {
-    outDir: 'web/dist',        // output directly into the resource's web/dist folder
+    outDir: 'web/dist',
     emptyOutDir: true,
     rollupOptions: {
       output: {
